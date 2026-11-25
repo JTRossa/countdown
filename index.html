@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Daily Countdown</title>
+<meta name="description" content="A new letters and numbers puzzle every day: three letters rounds, two numbers rounds and a conundrum.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='46' fill='%230d2d6b' stroke='%23f2c14e' stroke-width='8'/><path d='M50 50 L50 12 A38 38 0 0 1 88 50 Z' fill='%23f2c14e'/></svg>">
+<style>
+:root{
+  --bg:#081a3f; --bg2:#0d2d6b; --panel:#10357d; --tile:#1b4fb3; --tile-hi:#2a66d9;
+  --ink:#ffffff; --muted:#a9bde6; --gold:#f2c14e; --good:#3ecf8e; --bad:#ff6b6b;
+  --radius:10px;
+  font-family: "Avenir Next", "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:radial-gradient(1200px 700px at 50% -10%, #1a4596 0%, var(--bg) 60%);color:var(--ink);min-height:100%}
+body{min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:env(safe-area-inset-top) 12px 24px}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+button:disabled{opacity:.45;cursor:default}
+header{width:100%;max-width:640px;display:flex;align-items:center;justify-content:space-between;padding:14px 2px 10px;border-bottom:1px solid rgba(255,255,255,.12)}
+.brand{display:flex;align-items:center;gap:10px}
+.brand h1{font-size:1.25rem;letter-spacing:.06em;margin:0;text-transform:uppercase;font-weight:800}
+.brand small{display:block;color:var(--muted);font-size:.78rem;letter-spacing:.02em;font-weight:500}
+.icons{display:flex;gap:6px}
+.icon{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.07);font-weight:700}
+.icon:hover{background:rgba(255,255,255,.14)}
+main{width:100%;max-width:640px;flex:1;display:flex;flex-direction:column;align-items:center;gap:18px;padding-top:16px}
+.progress{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.pip{min-width:44px;height:30px;padding:0 6px;border-radius:7px;display:grid;place-items:center;font-size:.78rem;font-weight:700;background:rgba(255,255,255,.06);color:var(--muted);border:1px solid rgba(255,255,255,.1)}
+.pip.now{border-color:var(--gold);color:var(--gold)}
+.pip.done{background:var(--panel);color:var(--ink)}
+.pip.zero{color:var(--muted)}
+.card{width:100%;background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:20px;text-align:center}
+.card h2{margin:0 0 6px;font-size:1.35rem}
+.card p{color:var(--muted);margin:.4em 0;line-height:1.5}
+.kicker{font-size:.75rem;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);font-weight:700}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 22px;border-radius:999px;font-weight:700;background:var(--gold);color:#1a1300;font-size:1rem;min-width:140px}
+.btn:hover{filter:brightness(1.06)}
+.btn.ghost{background:rgba(255,255,255,.1);color:var(--ink)}
+.row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.top{display:flex;align-items:center;justify-content:space-between;width:100%;gap:12px}
+.roundlabel{text-align:left}
+.roundlabel .kicker{display:block}
+.roundlabel b{font-size:1.15rem}
+/* clock */
+.clock{--p:0;width:74px;height:74px;border-radius:50%;position:relative;flex:none;
+  background:conic-gradient(var(--gold) calc(var(--p)*0.5turn), #f7f3e6 0);border:4px solid #0a1f4d;box-shadow:0 0 0 3px #c9d6f2}
+.clock::before{content:"";position:absolute;inset:0;border-radius:50%;
+  background:repeating-conic-gradient(from -1deg, rgba(10,31,77,.55) 0 2deg, transparent 2deg 30deg)}
+.clock .hand{position:absolute;left:50%;top:50%;width:3px;height:44%;background:#0a1f4d;transform-origin:50% 0;border-radius:2px;
+  transform:translate(-50%,0) rotate(calc(180deg + var(--p)*180deg))}
+.clock .hub{position:absolute;left:50%;top:50%;width:10px;height:10px;background:#0a1f4d;border-radius:50%;transform:translate(-50%,-50%)}
+.clock.off{background:#f7f3e6;opacity:.35}
+.secs{font-variant-numeric:tabular-nums;font-weight:800;font-size:1.6rem;min-width:2ch;text-align:right}
+/* tiles */
+.tiles{display:grid;grid-template-columns:repeat(9,1fr);gap:6px;width:100%}
+.tile{aspect-ratio:1/1.1;border-radius:8px;background:linear-gradient(180deg,var(--tile-hi),var(--tile));
+  display:grid;place-items:center;font-weight:800;font-size:clamp(1.1rem,5.2vw,2rem);box-shadow:inset 0 -3px 0 rgba(0,0,0,.25), 0 2px 0 rgba(0,0,0,.25);user-select:none;transition:transform .12s, opacity .12s}
+.tile.used{opacity:.25;transform:scale(.94)}
+.tile.pop{animation:pop .35s ease-out both}
+@keyframes pop{from{transform:scale(.3) rotate(-8deg);opacity:0}to{transform:none;opacity:1}}
+.slots{display:grid;grid-template-columns:repeat(9,1fr);gap:6px;width:100%}
+.slot{aspect-ratio:1/1.1;border-radius:8px;border:2px dashed rgba(255,255,255,.18);display:grid;place-items:center;font-weight:800;font-size:clamp(1.1rem,5.2vw,2rem)}
+.slot.f{border:2px solid var(--gold);background:rgba(242,193,78,.12)}
+.shake{animation:shake .4s}
+@keyframes shake{20%,60%{transform:translateX(-7px)}40%,80%{transform:translateX(7px)}}
+.msg{min-height:1.4em;font-weight:600;color:var(--muted)}
+.msg.bad{color:var(--bad)} .msg.good{color:var(--good)}
+/* numbers */
+.target{font-variant-numeric:tabular-nums;font-size:clamp(2.6rem,12vw,4rem);font-weight:900;letter-spacing:.08em;background:#05122d;color:#ffb347;
+  border-radius:12px;padding:4px 22px;border:2px solid #1d3f86;text-shadow:0 0 18px rgba(255,140,40,.45)}
+.ntiles{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;width:100%}
+.ntile{min-height:60px;border-radius:10px;background:linear-gradient(180deg,var(--tile-hi),var(--tile));font-weight:800;font-size:clamp(1.1rem,5vw,1.6rem);
+  box-shadow:inset 0 -3px 0 rgba(0,0,0,.25)}
+.ntile.made{background:linear-gradient(180deg,#3c7a5c,#2b6049)}
+.ntile.sel{outline:3px solid var(--gold);outline-offset:2px}
+.ntile.gone{visibility:hidden}
+.ops{display:flex;gap:10px;justify-content:center}
+.op{width:56px;height:52px;border-radius:12px;background:rgba(255,255,255,.1);font-size:1.6rem;font-weight:800}
+.op.sel{background:var(--gold);color:#1a1300}
+.working{width:100%;display:flex;flex-direction:column;gap:4px;align-items:center;font-variant-numeric:tabular-nums;font-weight:600;min-height:1.4em}
+.working span{background:rgba(255,255,255,.06);border-radius:6px;padding:3px 10px}
+/* reveal */
+.reveal{width:100%;display:grid;gap:12px}
+.score-big{font-size:2.6rem;font-weight:900;color:var(--gold);line-height:1}
+.words{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.words span{background:rgba(255,255,255,.08);border-radius:6px;padding:4px 9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;font-size:.9rem}
+.words span.mine{background:var(--gold);color:#1a1300}
+.sol{display:flex;flex-direction:column;gap:4px;align-items:center;font-variant-numeric:tabular-nums;font-weight:600}
+.table{width:100%;border-collapse:collapse;margin-top:8px}
+.table td{padding:8px 6px;border-bottom:1px solid rgba(255,255,255,.08);text-align:left}
+.table td:last-child{text-align:right;font-weight:800}
+.total{font-size:3.2rem;font-weight:900;color:var(--gold);line-height:1}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
+.stat b{display:block;font-size:1.5rem}
+.stat small{color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.08em}
+/* modal */
+.modal{position:fixed;inset:0;background:rgba(3,10,28,.7);display:none;align-items:center;justify-content:center;padding:16px;z-index:10}
+.modal.open{display:flex}
+.modal .card{max-width:520px;text-align:left;max-height:90vh;overflow:auto;background:var(--bg2)}
+.modal h3{margin:.8em 0 .2em;color:var(--gold);font-size:1rem}
+.modal ul{margin:.3em 0;padding-left:1.2em;color:var(--muted);line-height:1.55}
+.switch{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.08)}
+.toggle{width:52px;height:30px;border-radius:999px;background:rgba(255,255,255,.2);position:relative;flex:none}
+.toggle::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:left .15s}
+.toggle.on{background:var(--good)} .toggle.on::after{left:25px}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#fff;color:#0a1f4d;padding:10px 16px;border-radius:10px;font-weight:700;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.show{opacity:1}
+footer{color:var(--muted);font-size:.75rem;margin-top:22px;text-align:center}
+@media (max-width:420px){.card{padding:16px 12px}.tiles,.slots{gap:4px}.clock{width:62px;height:62px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <svg width="34" height="34" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="44" fill="#0d2d6b" stroke="#f2c14e" stroke-width="8"/><path d="M50 50 L50 12 A38 38 0 0 1 88 50 Z" fill="#f2c14e"/></svg>
+    <div><h1>Daily Countdown</h1><small id="sub">Loading…</small></div>
+  </div>
+  <div class="icons">
+    <button class="icon" id="helpBtn" aria-label="How to play">?</button>
+    <button class="icon" id="setBtn" aria-label="Settings">⚙</button>
+  </div>
+</header>
+<main id="app"></main>
+<footer>A new puzzle every day at midnight, your local time.</footer>
+
+<div class="modal" id="help"><div class="card">
+  <h2>How to play</h2>
+  <p>Six rounds, the same puzzle for everyone each day. Each round has a 30 second clock.</p>
+  <h3>Letters rounds (3)</h3>
+  <ul><li>Make the longest word you can from the nine letters. Each letter can be used once.</li>
+  <li>Tap the tiles or type, then press <b>Declare</b>. One point per letter; a nine-letter word scores 18.</li>
+  <li>If the clock runs out, a valid word left in your slots still counts.</li></ul>
+  <h3>Numbers rounds (2)</h3>
+  <ul><li>Use + − × ÷ on the six numbers to reach the target. Each number can be used once, and you don't have to use them all.</li>
+  <li>Only whole, positive results are allowed. Tap a number, an operation, then another number.</li>
+  <li>Exact: 10 points. Within 5: 7 points. Within 10: 5 points. Your closest number is declared automatically.</li></ul>
+  <h3>Conundrum (1)</h3>
+  <ul><li>Unscramble the nine letters into a single word. 10 points. You can guess as often as you like before time is up.</li></ul>
+  <p>Maximum score: 84.</p>
+  <div class="row" style="margin-top:12px"><button class="btn" data-close>Got it</button></div>
+</div></div>
+
+<div class="modal" id="settings"><div class="card">
+  <h2>Settings</h2>
+  <div class="switch"><div><b>30 second clock</b><br><small style="color:var(--muted)">Turn off for an untimed practice game. Untimed scores are marked on the share card.</small></div><button class="toggle" id="timerToggle" aria-label="Toggle clock"></button></div>
+  <div class="row" style="margin-top:16px"><button class="btn" data-close>Done</button></div>
+</div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+"use strict";
+const ROUND_TIME = 30;
+const ROUND_NAMES = {letters:"Letters", numbers:"Numbers", conundrum:"Conundrum"};
+const $ = s => document.querySelector(s);
+const app = $("#app");
+
+// ---------- storage (best effort) ----------
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+const settings = store.get("dc-settings", {timed:true});
+
+// ---------- date ----------
+function localISO(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+const todayISO = localISO(new Date());
+let dateISO = todayISO;
+const qp = new URLSearchParams(location.search).get("date");
+if (qp && /^\d{4}-\d{2}-\d{2}$/.test(qp) && qp <= todayISO) dateISO = qp;
+const prettyDate = new Date(dateISO+"T12:00:00").toLocaleDateString(undefined,{weekday:"short",day:"numeric",month:"short",year:"numeric"});
+
+// ---------- decode ----------
+function decode(b64, key){
+  const bin = atob(b64), k = new TextEncoder().encode(key), out = new Uint8Array(bin.length);
+  for (let i=0;i<bin.length;i++) out[i] = bin.charCodeAt(i) ^ k[i % k.length];
+  return JSON.parse(new TextDecoder().decode(out));
+}
+
+let P = null;           // puzzle
+let S = null;           // saved state for the day
+let timer = null;       // active clock interval
+let keyHandler = null;  // active keyboard handler
+
+function save(){ store.set("dc-"+dateISO, S); }
+
+async function load(){
+  try{
+    const r = await fetch("puzzles/"+dateISO+".json", {cache:"no-cache"});
+    if (!r.ok) throw new Error(r.status);
+    const j = await r.json();
+    P = decode(j.data, j.date);
+  }catch(e){
+    $("#sub").textContent = prettyDate;
+    app.innerHTML = `<div class="card"><h2>No puzzle found</h2><p>There isn't a puzzle file for ${dateISO} yet. Run <code>scripts/generate.py</code> to add more days.</p></div>`;
+    return;
+  }
+  $("#sub").textContent = "#"+P.number+" · "+prettyDate;
+  S = store.get("dc-"+dateISO, null) || {idx:0, startedAt:null, results:[], timed:settings.timed};
+  if (!store.get("dc-seen-help", false)){ openModal("help"); store.set("dc-seen-help", true); }
+  route();
+}
+
+function route(){
+  stopClock();
+  if (S.idx >= 6) return renderFinal();
+  if (S.startedAt) return startRound(true);
+  renderRoundIntro();
+}
+
+// ---------- shared UI bits ----------
+function progressHTML(){
+  return `<div class="progress">${P.rounds.map((r,i)=>{
+    const res = S.results[i];
+    const label = res ? res.score : (r.type==="letters"?"ABC":r.type==="numbers"?"123":"???");
+    const cls = res ? ("done"+(res.score===0?" zero":"")) : (i===S.idx?"now":"");
+    return `<div class="pip ${cls}" title="Round ${i+1}: ${ROUND_NAMES[r.type]}">${label}</div>`;
+  }).join("")}</div>`;
+}
+function topHTML(i){
+  const r = P.rounds[i];
+  return `<div class="top"><div class="roundlabel"><span class="kicker">Round ${i+1} of 6</span><b>${ROUND_NAMES[r.type]}</b></div>
+    <div class="row" style="align-items:center;gap:10px"><span class="secs" id="secs">${S.timed?ROUND_TIME:""}</span><div class="clock ${S.timed?"":"off"}" id="clock"><div class="hand"></div><div class="hub"></div></div></div></div>`;
+}
+function toast(t){ const el=$("#toast"); el.textContent=t; el.classList.add("show"); clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove("show"),1800); }
+function shake(el){ el.classList.remove("shake"); void el.offsetWidth; el.classList.add("shake"); }
+function setKeys(fn){ if (keyHandler) document.removeEventListener("keydown", keyHandler); keyHandler = fn; if (fn) document.addEventListener("keydown", fn); }
+
+function startClock(onEnd){
+  stopClock();
+  const clock = $("#clock"), secs = $("#secs");
+  if (!S.timed){ return; }
+  const tick = () => {
+    const el = (Date.now() - S.startedAt)/1000;
+    const p = Math.min(el/ROUND_TIME, 1);
+    clock.style.setProperty("--p", p);
+    secs.textContent = Math.max(0, Math.ceil(ROUND_TIME - el));
+    if (p >= 1){ stopClock(); onEnd(); }
+  };
+  tick();
+  timer = setInterval(tick, 100);
+}
+function stopClock(){ if (timer){ clearInterval(timer); timer = null; } }
+
+// ---------- round intro ----------
+function renderRoundIntro(){
+  setKeys(null);
+  const i = S.idx, r = P.rounds[i];
+  const blurb = {
+    letters:"Find the longest word in nine letters.",
+    numbers:"Reach the target using the six numbers.",
+    conundrum:"Unscramble the nine-letter word."
+  }[r.type];
+  const first = i===0 && S.results.length===0;
+  app.innerHTML = progressHTML() + `<div class="card">
+    <span class="kicker">Round ${i+1} of 6</span>
+    <h2>${ROUND_NAMES[r.type]}${r.type==="conundrum"?"":" round"}</h2>
+    <p>${blurb}</p>
+    <p>${S.timed?"You have 30 seconds once the clock starts.":"Untimed game. Take as long as you like."}</p>
+    <div class="row" style="margin-top:14px"><button class="btn" id="go">${first?"Start today's game":"Start the clock"}</button></div>
+    ${first?`<p style="margin-top:14px;font-size:.85rem">Clock: <b>${S.timed?"on":"off"}</b>. You can change this in ⚙ before you start.</p>`:""}
+  </div>`;
+  $("#go").onclick = () => { if (first) S.timed = settings.timed; S.startedAt = Date.now(); save(); startRound(false); };
+  const enter = e => { if (e.key==="Enter"){ e.preventDefault(); $("#go").click(); } };
+  setKeys(enter);
+}
+
+function startRound(resumed){
+  const r = P.rounds[S.idx];
+  if (r.type==="letters") return lettersRound(r, resumed);
+  if (r.type==="numbers") return numbersRound(r, resumed);
+  return conundrumRound(r, resumed);
+}
+
+function finishRound(result){
+  stopClock(); setKeys(null);
+  S.results[S.idx] = result; S.startedAt = null; S.idx++; save();
+  if (S.idx >= 6) recordStats();
+  renderReveal(S.idx-1);
+}
+
+// ---------- letter entry (shared by letters + conundrum) ----------
+function letterBoard(letters, onSubmit, submitLabel){
+  const picked = []; // indices
+  const html = `
+    <div class="tiles" id="tiles">${[...letters].map((c,i)=>`<button class="tile pop" style="animation-delay:${i*70}ms" data-i="${i}">${c}</button>`).join("")}</div>
+    <div class="slots" id="slots">${Array(9).fill('<div class="slot"></div>').join("")}</div>
+    <div class="msg" id="msg">&nbsp;</div>
+    <div class="row"><button class="btn ghost" id="clr">Clear</button><button class="btn ghost" id="del">⌫</button><button class="btn" id="sub">${submitLabel}</button></div>`;
+  const bind = () => {
+    const tiles = [...document.querySelectorAll("#tiles .tile")], slots = [...document.querySelectorAll("#slots .slot")];
+    const draw = () => {
+      tiles.forEach((t,i)=>t.classList.toggle("used", picked.includes(i)));
+      slots.forEach((s,i)=>{ s.textContent = picked[i]!==undefined ? letters[picked[i]] : ""; s.classList.toggle("f", picked[i]!==undefined); });
+    };
+    const add = i => { if (!picked.includes(i) && picked.length<9){ picked.push(i); draw(); setMsg(""); } };
+    const back = () => { picked.pop(); draw(); };
+    const clear = () => { picked.length = 0; draw(); };
+    tiles.forEach((t,i)=>{ t.onclick=()=>add(i); t.addEventListener("animationend", ()=>t.classList.remove("pop"), {once:true}); });
+    slots.forEach((s,i)=>s.onclick=()=>{ if (i < picked.length){ picked.splice(i,1); draw(); } });
+    $("#clr").onclick = clear; $("#del").onclick = back;
+    $("#sub").onclick = () => onSubmit(word(), api);
+    setKeys(e => {
+      if (e.metaKey||e.ctrlKey||e.altKey) return;
+      if (e.key==="Backspace"){ e.preventDefault(); back(); return; }
+      if (e.key==="Enter"){ e.preventDefault(); onSubmit(word(), api); return; }
+      if (e.key==="Escape"){ clear(); return; }
+      const k = e.key.toUpperCase();
+      if (/^[A-Z]$/.test(k)){
+        const i = [...letters].findIndex((c,j)=>c===k && !picked.includes(j));
+        if (i>=0) add(i); else shake($("#slots"));
+      }
+    });
+    draw();
+  };
+  const word = () => picked.map(i=>letters[i]).join("");
+  const setMsg = (t, cls="") => { const m=$("#msg"); if (m){ m.textContent = t || " "; m.className = "msg "+cls; } };
+  const api = {word, clear:()=>{picked.length=0; document.querySelectorAll("#tiles .tile").forEach(t=>t.classList.remove("used")); document.querySelectorAll("#slots .slot").forEach(s=>{s.textContent="";s.classList.remove("f");});}, setMsg, shakeSlots:()=>shake($("#slots"))};
+  return {html, bind, api};
+}
+
+// ---------- letters round ----------
+function lettersRound(r, resumed){
+  const valid = new Set(r.words);
+  const board = letterBoard(r.letters, (w, api) => declare(w, api, false), "Declare");
+  app.innerHTML = progressHTML() + `<div class="card">${topHTML(S.idx)}<div style="height:14px"></div>${board.html}</div>`;
+  board.bind();
+  function declare(w, api, timeUp){
+    const lw = w.toLowerCase();
+    if (!w){
+      if (timeUp) return finishRound({type:"letters", score:0, word:""});
+      if (api.emptyArmed) return finishRound({type:"letters", score:0, word:""});
+      api.emptyArmed = true;
+      api.setMsg("No word? Press Declare again to score 0", "bad"); return;
+    }
+    if (valid.has(lw)) return finishRound({type:"letters", score: w.length===9?18:w.length, word:w});
+    if (timeUp) return finishRound({type:"letters", score:0, word:w, invalid:true});
+    api.setMsg(`${w} isn't in our dictionary`, "bad"); api.shakeSlots();
+  }
+  if (resumed && S.timed && Date.now()-S.startedAt > ROUND_TIME*1000) return finishRound({type:"letters", score:0, word:""});
+  setTimeout(()=>startClock(()=>declare(board.api.word(), board.api, true)), resumed?0:700);
+}
+
+// ---------- conundrum ----------
+function conundrumRound(r, resumed){
+  let guesses = 0;
+  const board = letterBoard(r.scramble, (w, api) => {
+    if (w.length < 9){ api.setMsg("Use all nine letters", "bad"); api.shakeSlots(); return; }
+    guesses++;
+    if (w === r.answer) return finishRound({type:"conundrum", score:10, solved:true, guesses});
+    api.setMsg("Not quite. Keep going!", "bad"); api.shakeSlots(); api.clear();
+  }, "Guess");
+  app.innerHTML = progressHTML() + `<div class="card">${topHTML(S.idx)}<div style="height:14px"></div>${board.html}
+    ${S.timed?"":`<div class="row" style="margin-top:10px"><button class="btn ghost" id="give">Reveal answer</button></div>`}</div>`;
+  board.bind();
+  if (!S.timed) $("#give").onclick = () => finishRound({type:"conundrum", score:0, solved:false, guesses});
+  if (resumed && S.timed && Date.now()-S.startedAt > ROUND_TIME*1000) return finishRound({type:"conundrum", score:0, solved:false, guesses:0});
+  setTimeout(()=>startClock(()=>{
+    const w = board.api.word();
+    if (w === r.answer) return finishRound({type:"conundrum", score:10, solved:true, guesses:guesses+1});
+    finishRound({type:"conundrum", score:0, solved:false, guesses});
+  }), resumed?0:700);
+}
+
+// ---------- numbers round ----------
+function numbersScore(diff){ return diff===0?10:diff<=5?7:diff<=10?5:0; }
+function numbersRound(r, resumed){
+  let tiles = r.numbers.map((v,i)=>({id:i, v, made:false, alive:true}));
+  let history = [];        // snapshots for undo
+  let stepsDone = [];      // strings
+  let sel = null, op = null;
+  app.innerHTML = progressHTML() + `<div class="card">${topHTML(S.idx)}
+    <div style="display:flex;justify-content:center;margin:14px 0 16px"><div class="target" id="target">${r.target}</div></div>
+    <div class="ntiles" id="ntiles"></div>
+    <div style="height:12px"></div>
+    <div class="ops">${["+","−","×","÷"].map(o=>`<button class="op" data-op="${o}">${o}</button>`).join("")}</div>
+    <div style="height:12px"></div>
+    <div class="working" id="working"></div>
+    <div class="msg" id="msg">&nbsp;</div>
+    <div class="row"><button class="btn ghost" id="undo">Undo</button><button class="btn ghost" id="reset">Reset</button><button class="btn" id="dec">Declare</button></div>
+  </div>`;
+  const setMsg = (t, cls="") => { const m=$("#msg"); m.textContent=t||" "; m.className="msg "+cls; };
+  const best = () => {
+    // closest value reachable on the current path: any live tile or any step result
+    const vals = tiles.filter(t=>t.alive).map(t=>t.v).concat(stepsDone.map(s=>s.v));
+    let b = vals[0];
+    for (const v of vals) if (Math.abs(v-r.target) < Math.abs(b-r.target)) b = v;
+    return b;
+  };
+  const draw = () => {
+    $("#ntiles").innerHTML = tiles.map(t=>`<button class="ntile ${t.made?"made":""} ${sel===t.id?"sel":""} ${t.alive?"":"gone"}" data-id="${t.id}">${t.v}</button>`).join("");
+    document.querySelectorAll(".op").forEach(b=>b.classList.toggle("sel", b.dataset.op===op));
+    $("#working").innerHTML = stepsDone.map(s=>`<span>${s.text}</span>`).join("");
+    $("#undo").disabled = !history.length; $("#reset").disabled = !history.length;
+    document.querySelectorAll(".ntile").forEach(b=>b.onclick=()=>pick(+b.dataset.id));
+  };
+  const pick = id => {
+    const t = tiles.find(x=>x.id===id);
+    if (!t.alive) return;
+    if (sel===null || op===null){ sel = (sel===id && op===null) ? null : id; draw(); setMsg(""); return; }
+    if (sel===id){ sel=null; op=null; draw(); return; }
+    const a = tiles.find(x=>x.id===sel), b = t;
+    let v;
+    if (op==="+") v = a.v + b.v;
+    if (op==="−") v = a.v - b.v;
+    if (op==="×") v = a.v * b.v;
+    if (op==="÷") v = a.v / b.v;
+    if (!Number.isInteger(v) || v <= 0){
+      setMsg(op==="÷" ? "Division must come out exactly" : "Results must be positive", "bad");
+      op = null; draw(); return;
+    }
+    history.push({tiles: tiles.map(x=>({...x})), stepsDone:[...stepsDone]});
+    const nid = Math.max(...tiles.map(x=>x.id))+1;
+    b.alive = false;
+    tiles[tiles.indexOf(a)] = {id:nid, v, made:true, alive:true};  // result takes the first number's place
+    stepsDone.push({text:`${a.v} ${op} ${b.v} = ${v}`, v});
+    sel = nid; op = null;
+    if (v === r.target){ setMsg("Bang on! Press Declare.", "good"); }
+    else setMsg("");
+    draw();
+  };
+  document.querySelectorAll(".op").forEach(b=>b.onclick=()=>{
+    if (sel===null){ setMsg("Pick a number first", "bad"); return; }
+    op = op===b.dataset.op ? null : b.dataset.op; draw();
+  });
+  $("#undo").onclick = () => { const h = history.pop(); if (!h) return; tiles = h.tiles; stepsDone = h.stepsDone; sel=null; op=null; setMsg(""); draw(); };
+  $("#reset").onclick = () => { if (!history.length) return; tiles = history[0].tiles; stepsDone = []; history=[]; sel=null; op=null; setMsg(""); draw(); };
+  const declare = () => {
+    const v = best(), diff = Math.abs(v - r.target);
+    // keep only the steps needed for the declared value? keep the full working for transparency
+    finishRound({type:"numbers", score:numbersScore(diff), value:v, diff, steps:stepsDone.map(s=>s.text)});
+  };
+  $("#dec").onclick = declare;
+  setKeys(e => {
+    const map = {"+":"+","-":"−","*":"×","x":"×","/":"÷"};
+    if (map[e.key]){ const b=[...document.querySelectorAll(".op")].find(b=>b.dataset.op===map[e.key]); b && b.click(); }
+    if (e.key==="Backspace"){ e.preventDefault(); $("#undo").click(); }
+    if (e.key==="Enter"){ e.preventDefault(); declare(); }
+  });
+  draw();
+  if (resumed && S.timed && Date.now()-S.startedAt > ROUND_TIME*1000) return declare();
+  startClock(declare);
+}
+
+// ---------- reveal ----------
+function renderReveal(i){
+  const r = P.rounds[i], res = S.results[i];
+  let body = "";
+  if (r.type==="letters"){
+    const maxLen = r.words[0].length;
+    const top = r.words.filter(w=>w.length===maxLen).slice(0,8);
+    const next = r.words.filter(w=>w.length===maxLen-1).slice(0,6);
+    const mine = (res.word||"").toLowerCase();
+    body = `<p>${res.word ? (res.invalid ? `<b>${res.word}</b> isn't in the dictionary.` : `You declared <b>${res.word}</b>.`) : "No word declared."}</p>
+      <p class="kicker" style="margin-top:10px">Best possible: ${maxLen} letters</p>
+      <div class="words">${top.map(w=>`<span class="${w===mine?"mine":""}">${w}</span>`).join("")}</div>
+      ${next.length?`<p class="kicker" style="margin-top:6px">${maxLen-1} letters</p><div class="words">${next.map(w=>`<span class="${w===mine?"mine":""}">${w}</span>`).join("")}</div>`:""}`;
+  } else if (r.type==="numbers"){
+    body = `<p>Target <b>${r.target}</b>. You declared <b>${res.value}</b>${res.diff?` (${res.diff} away)`:" — spot on"}.</p>
+      ${res.steps.length?`<div class="sol">${res.steps.map(s=>`<span>${s}</span>`).join("")}</div>`:""}
+      <p class="kicker" style="margin-top:10px">One way to get it</p>
+      <div class="sol">${r.solution.map(s=>`<span>${s}</span>`).join("")}</div>`;
+  } else {
+    body = `<p>${res.solved?"You cracked it!":"The answer was:"}</p><div class="words"><span class="mine" style="font-size:1.3rem">${r.answer}</span></div>`;
+  }
+  const last = i===5;
+  app.innerHTML = progressHTML() + `<div class="card reveal">
+    <span class="kicker">Round ${i+1} · ${ROUND_NAMES[r.type]}</span>
+    <div class="score-big">${res.score} <span style="font-size:1rem;color:var(--muted)">point${res.score===1?"":"s"}</span></div>
+    ${body}
+    <div class="row" style="margin-top:6px"><button class="btn" id="next">${last?"See your score":"Next round"}</button></div>
+  </div>`;
+  $("#next").onclick = () => route();
+  setKeys(e=>{ if (e.key==="Enter"){ e.preventDefault(); route(); } });
+}
+
+// ---------- final ----------
+function total(){ return S.results.reduce((a,r)=>a+r.score,0); }
+function recordStats(){
+  const st = store.get("dc-stats", {played:0, totalScore:0, best:0, streak:0, maxStreak:0, last:null});
+  if (st.lastRecorded === dateISO) return;
+  const t = total();
+  st.played++; st.totalScore += t; st.best = Math.max(st.best, t);
+  if (dateISO === todayISO){
+    const y = new Date(); y.setDate(y.getDate()-1);
+    st.streak = (st.last === localISO(y)) ? st.streak+1 : 1;
+    st.maxStreak = Math.max(st.maxStreak, st.streak);
+    st.last = dateISO;
+  }
+  st.lastRecorded = dateISO;
+  store.set("dc-stats", st);
+}
+function shareText(){
+  const lr = S.results;
+  const L = [0,1,3].map(i=>lr[i].score).join(" "), N = [2,4].map(i=>lr[i].score).join(" "), C = lr[5].score;
+  return `Daily Countdown #${P.number}${S.timed?"":" (untimed)"}\n${total()}/84\n🔤 ${L}  🔢 ${N}  🧩 ${C}\n${location.origin+location.pathname}`;
+}
+function nextIn(){
+  const now = new Date(), m = new Date(now); m.setHours(24,0,0,0);
+  const s = Math.floor((m-now)/1000), h = Math.floor(s/3600), mi = Math.floor(s%3600/60);
+  return `${h}h ${mi}m`;
+}
+function renderFinal(){
+  setKeys(null);
+  const st = store.get("dc-stats", {played:0,totalScore:0,best:0,streak:0,maxStreak:0});
+  const t = total();
+  const verdict = t>=70?"Outstanding. Dictionary Corner would be proud.":t>=55?"Excellent game.":t>=40?"Solid score.":t>=25?"Not bad at all.":"Tomorrow's another day.";
+  app.innerHTML = progressHTML() + `<div class="card">
+    <span class="kicker">Daily Countdown #${P.number}</span>
+    <div class="total" style="margin:8px 0">${t}<span style="font-size:1.2rem;color:var(--muted)"> / 84</span></div>
+    <p>${verdict}${S.timed?"":" (untimed)"}</p>
+    <table class="table">${P.rounds.map((r,i)=>{
+      const res=S.results[i];
+      const what = r.type==="letters" ? (res.word && !res.invalid ? res.word : "—") : r.type==="numbers" ? `${res.value} for ${r.target}` : (res.solved ? r.answer : "—");
+      return `<tr><td><span style="color:var(--muted)">${i+1}.</span> ${ROUND_NAMES[r.type]}</td><td style="text-align:left;color:var(--muted)">${what}</td><td>${res.score}</td></tr>`;
+    }).join("")}</table>
+    <div class="row" style="margin-top:16px"><button class="btn" id="share">Share score</button></div>
+    <div class="stats">
+      <div class="stat"><b>${st.played}</b><small>Played</small></div>
+      <div class="stat"><b>${st.played?Math.round(st.totalScore/st.played):0}</b><small>Average</small></div>
+      <div class="stat"><b>${st.best}</b><small>Best</small></div>
+      <div class="stat"><b>${st.streak||0}</b><small>Streak</small></div>
+    </div>
+    <p style="margin-top:14px">Next puzzle in <b id="nextIn">${nextIn()}</b>.</p>
+  </div>`;
+  $("#share").onclick = async () => {
+    const txt = shareText();
+    try{ if (navigator.share && matchMedia("(pointer:coarse)").matches){ await navigator.share({text:txt}); return; } }catch(e){}
+    try{ await navigator.clipboard.writeText(txt); toast("Copied to clipboard"); }
+    catch(e){ const ta=document.createElement("textarea"); ta.value=txt; ta.rows=4; ta.style.cssText="width:100%;margin-top:12px;border-radius:8px;padding:8px;font:inherit"; $("#share").after(ta); ta.select(); toast("Copy your score from the box"); }
+  };
+  clearInterval(window._dcNext); window._dcNext = setInterval(()=>{ const n=$("#nextIn"); if (n) n.textContent = nextIn(); }, 30000);
+}
+
+// ---------- modals ----------
+function openModal(id){ $("#"+id).classList.add("open"); }
+document.querySelectorAll(".modal").forEach(m=>{
+  m.addEventListener("click", e=>{ if (e.target===m || e.target.hasAttribute("data-close")) m.classList.remove("open"); });
+});
+$("#helpBtn").onclick = () => openModal("help");
+const tt = $("#timerToggle");
+const syncToggle = () => tt.classList.toggle("on", settings.timed);
+syncToggle();
+tt.onclick = () => {
+  if (S && (S.results.length || S.startedAt)){ toast("Clock setting applies from tomorrow's game"); }
+  settings.timed = !settings.timed; store.set("dc-settings", settings); syncToggle();
+  if (S && !S.results.length && !S.startedAt){ S.timed = settings.timed; renderRoundIntro(); }
+};
+$("#setBtn").onclick = () => openModal("settings");
+
+load();
+})();
+</script>
+</body>
+</html>
